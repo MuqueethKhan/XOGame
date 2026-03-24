@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON STORM - Survival</title>
+    <style>
+        body { margin: 0; background: #050505; color: white; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; cursor: none; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+        .hidden { display: none; }
+        h1 { font-size: 3rem; text-shadow: 0 0 10px #ff00ff; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>SCORE: <span id="score">0</span></div>
+        <div>BEST: <span id="high">0</span></div>
+    </div>
+
+    <div id="msg">
+        <h1 id="title">NEON STORM</h1>
+        <p>Dodge the triangles. Stay alive.</p>
+        <button onclick="startGame()" style="padding: 10px 20px; cursor: pointer; background: #00ffff; border: none; font-weight: bold;">START EXPERIMENT</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highEl = document.getElementById('high');
+        const msg = document.getElementById('msg');
+
+        let score = 0;
+        let highscore = 0;
+        let gameActive = false;
+        let enemies = [];
+        let particles = [];
+        let mouse = { x: 0, y: 0 };
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        class Enemy {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                const side = Math.floor(Math.random() * 4);
+                if (side === 0) { this.x = Math.random() * canvas.width; this.y = -20; }
+                else if (side === 1) { this.x = canvas.width + 20; this.y = Math.random() * canvas.height; }
+                else if (side === 2) { this.x = Math.random() * canvas.width; this.y = canvas.height + 20; }
+                else { this.x = -20; this.y = Math.random() * canvas.height; }
+                
+                this.size = 15 + Math.random() * 10;
+                this.speed = 2 + (score / 500);
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Collision check
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 20) endGame();
+
+                // Boundary reset
+                if (this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50) {
+                    this.reset();
+                    score += 10;
+                }
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - this.size);
+                ctx.lineTo(this.x - this.size, this.y + this.size);
+                ctx.lineTo(this.x + this.size, this.y + this.size);
+                ctx.fill();
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            enemies = [];
+            for (let i = 0; i < 15; i++) enemies.push(new Enemy());
+            gameActive = true;
+            msg.classList.add('hidden');
+            animate();
+        }
+
+        function endGame() {
+            gameActive = false;
+            if (score > highscore) highscore = score;
+            highEl.innerText = highscore;
+            document.getElementById('title').innerText = "SYSTEM FAILURE";
+            msg.classList.remove('hidden');
+        }
+
+        function animate() {
+            if (!gameActive) return;
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)'; // Motion blur effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Player
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(mouse.x - 10, mouse.y - 10, 20, 20);
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00ffff';
+
+            enemies.forEach(enemy => {
+                enemy.update();
+                enemy.draw();
+            });
+
+            // Increase difficulty
+            if (score % 1000 === 0 && enemies.length < 50) {
+                enemies.push(new Enemy());
+            }
+
+            scoreEl.innerText = score;
+            requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
